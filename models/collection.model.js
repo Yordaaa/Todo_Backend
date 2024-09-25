@@ -1,13 +1,26 @@
 import { Schema, model } from "mongoose";
 
-const collectionSchema = new Schema(
+// Task Schema (Recursive subtasks)
+const taskSchema = new Schema(
   {
-    collectionName: { type: String, required: true, unique: true },
-    collectionImg: {
-      type: String,
-    },
+    description: { type: String, required: true },
+    status: { type: Boolean, default: false },
+    date: { type: Date, required: true },
+    subtasks: [{ type: Schema.Types.ObjectId, ref: "Task" }], 
   },
   { timestamps: true }
 );
 
-export default model("Collection", collectionSchema);
+// Collection Schema
+const collectionSchema = new Schema(
+  {
+    collectionName: { type: String, required: true, unique: true },
+    collectionImg: { type: String },
+    tasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
+  },
+  { timestamps: true }
+);
+
+// Models
+export const Task = model("Task", taskSchema);
+export const Collection = model("Collection", collectionSchema);
