@@ -5,6 +5,7 @@ import { errorHandler } from "../utils/errorHandler.js";
 import bcrypt from "bcryptjs";
 import { issueJWT } from "../utils/sighToken.js";
 
+//Register new user
 export const registerUser = async (req, res, next) => {
   const { name, password } = req.body;
   console.log(req.body);
@@ -27,6 +28,7 @@ export const registerUser = async (req, res, next) => {
   }
 };
 
+//user signin
 export const signin = async (req, res, next) => {
   const { name, password } = req.body;
   console.log(req.body.name, req.body.password);
@@ -54,6 +56,7 @@ export const signin = async (req, res, next) => {
   }
 };
 
+// User sign-out
 export const signOut = async (req, res) => {
   res.cookie("access_token", null, {
     expires: new Date(Date.now()),
