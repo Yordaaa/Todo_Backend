@@ -7,7 +7,7 @@ const userSchema = new Schema(
     favourite: [
       {
         type: Schema.Types.ObjectId,
-        ref: "Product",
+        ref: "Collection",
       },
     ],
   },
