@@ -68,7 +68,7 @@ export const getSubtasksByTask = async (req, res, next) => {
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
-
+    console.log(task);
     res.status(200).json({ success: true, subtasks: task.subtasks });
   } catch (error) {
     next(error);
