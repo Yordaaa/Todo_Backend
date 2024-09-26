@@ -1,4 +1,4 @@
-import { Collection} from "../models/collection.model.js";
+import { Collection } from "../models/collection.model.js";
 
 // Create a new collection
 export const createCollection = async (req, res, next) => {
@@ -15,37 +15,9 @@ export const createCollection = async (req, res, next) => {
 // Get all collections
 export const getAllCollections = async (req, res, next) => {
   try {
-    const collections = await Collection.find().populate("tasks");
+    const collections = await Collection.find();
     res.status(200).json({ success: true, collections });
   } catch (error) {
     next(error);
   }
 };
-
-// Get collection by ID
-export const getCollectionById = async (req, res, next) => {
-  const { collectionId } = req.params;
-
-  try {
-    const collection = await Collection.findById(collectionId).populate({
-      path: "tasks",
-      populate: {
-        path: "subtasks",
-        populate: {
-          path: "subtasks", // Recursively populate subtasks of subtasks
-          populate: { path: "subtasks" }, // If more levels are needed, you can continue nesting this way
-        },
-      },
-    });
-
-    if (!collection) {
-      return res.status(404).json({ message: "Collection not found" });
-    }
-
-    res.status(200).json({ success: true, collection });
-  } catch (error) {
-    next(error);
-  }
-};
-
-

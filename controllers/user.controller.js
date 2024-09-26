@@ -3,11 +3,13 @@ import { errorHandler } from "../utils/errorHandler.js";
 
 export const addfavourite = async (req, res, next) => {
   try {
+    console.log(req.body);
     const user = await userModel.findByIdAndUpdate(
       req.userId,
       { $addToSet: { favourite: req.body.collectionId } },
       { new: true }
     );
+    console.log(user);
     if (!user) {
       return new errorHandler("User is not found", 404);
     }
@@ -43,6 +45,7 @@ export const getUserfavourite = async (req, res, next) => {
     if (!user) {
       return next(new errorHandler("user Not Found", 404));
     }
+    console.log(user.favourite);
 
     res.status(200).json({ favourite: user.favourite });
   } catch (error) {

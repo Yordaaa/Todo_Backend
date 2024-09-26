@@ -6,8 +6,8 @@ const taskSchema = new Schema(
     status: { type: Boolean, default: false },
     date: { type: Date, required: true },
     subtasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
-    collectionId: [{ type: Schema.Types.ObjectId, ref: "Collections" }], 
-    userId: { type: Schema.Types.ObjectId, ref: "User" },
+    collectionId: { type: Schema.Types.ObjectId, ref: "Collection" },
+    userId: { type: Schema.Types.ObjectId, ref: "user" },
   },
   { timestamps: true }
 );
