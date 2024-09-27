@@ -1,59 +1,119 @@
+// task.controller.js
 import { Task } from "../models/task.model.js";
+import { Collection } from "../models/collection.model.js";
 
-// Add a task to a collection
+// Add a task or subtask
 export const addTask = async (req, res, next) => {
-  const { description, status, date } = req.body;
-  const { collectionId } = req.params;
-  console.log(req.userId);
+  const { description, date, collectionId, parentId } = req.body; // Include parentId for subtasks
   try {
     const newTask = new Task({
       description,
-      status,
       date,
       userId: req.userId,
-      collectionId,
     });
-    await newTask.save();
 
+    // Check if it's a subtask
+    if (parentId) {
+      newTask.parentId = parentId; // Set parentId for the subtask
+
+      // Find the parent task and push the new subtask ID into its subtasks array
+      const parentTask = await Task.findById(parentId);
+      if (!parentTask) {
+        return res.status(404).json({ message: "Parent task not found" });
+      }
+
+      await parentTask.updateOne({ $push: { subtasks: newTask._id } }); // Update parent task's subtasks
+    } else if (collectionId) {
+      newTask.collectionId = collectionId;
+      await Collection.findByIdAndUpdate(
+        collectionId,
+        { $push: { tasks: newTask._id } },
+        { new: true }
+      );
+    }
+
+    await newTask.save();
     res.status(201).json({ message: "Task added", task: newTask });
   } catch (error) {
     next(error);
   }
 };
 
-export const getTasksByCollection = async (req, res, next) => {
-  const { collectionId } = req.params;
+// Edit a task or subtask
+export const editTask = async (req, res, next) => {
+  const { taskId } = req.params;
+  const { description, status, date } = req.body;
 
   try {
-    const collection = await Collection.findById(collectionId);
+    const updatedTask = await Task.findByIdAndUpdate(
+      taskId,
+      { description, status, date },
+      { new: true, runValidators: true }
+    );
 
-    if (!collection) {
-      return res.status(404).json({ message: "Collection not found" });
+    if (!updatedTask) {
+      return res.status(404).json({ message: "Task not found" });
     }
 
-    res.status(200).json({ success: true, tasks: collection.tasks });
+    res.status(200).json({ success: true, task: updatedTask });
   } catch (error) {
     next(error);
   }
 };
-// Add a subtask to a task
-export const addSubtaskToTask = async (req, res, next) => {
-  const { description, status, date } = req.body;
+
+// Update task or subtask status
+export const updateTaskStatus = async (req, res) => {
   const { taskId } = req.params;
+  const { status } = req.body;
 
   try {
-    const parentTask = await Task.findById(taskId);
-    if (!parentTask) {
+    const updatedTask = await Task.findByIdAndUpdate(
+      taskId,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedTask) {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    const newSubtask = new Task({ description, status, date });
-    await newSubtask.save();
+    // Update all subtasks' status based on the parent task's new status
+    if (updatedTask.subtasks && updatedTask.subtasks.length > 0) {
+      await Task.updateMany(
+        { _id: { $in: updatedTask.subtasks } }, // Use $in to update all subtasks at once
+        { status }
+      );
+    }
 
-    parentTask.subtasks.push(newSubtask._id);
-    await parentTask.save();
+    res.status(200).json({ success: true, task: updatedTask });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
 
-    res.status(201).json({ message: "Subtask added", subtask: newSubtask });
+// Get user-specific tasks by collection ID
+export const getUserTasksById = async (req, res, next) => {
+  const { collectionId } = req.params;
+  try {
+    const tasks = await Task.find({
+      collectionId,
+      userId: req.userId,
+    })
+      .populate("collectionId")
+      .populate({
+        path: "subtasks",
+        populate: { path: "subtasks" } // Populate nested subtasks
+      });
+
+    // Fetch the collection name
+    const collection = await Collection.findById(collectionId);
+    if (!collection) {
+      return res.status(404).json({ message: "Collection not found" });
+    }
+    // Define collectionName here
+    const collectionName = collection.collectionName;
+
+    res.status(200).json({ success: true, tasks, collectionName });
   } catch (error) {
     next(error);
   }
@@ -65,76 +125,18 @@ export const getSubtasksByTask = async (req, res, next) => {
 
   try {
     const task = await Task.findById(taskId).populate("subtasks");
+
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
-    console.log(task);
+
     res.status(200).json({ success: true, subtasks: task.subtasks });
   } catch (error) {
     next(error);
   }
 };
 
-export const editTask = async (req, res, next) => {
-  const { taskId } = req.params;
-  const { description, status, date } = req.body; // Get updated values from request body
-
-  try {
-    const updatedTask = await Task.findByIdAndUpdate(
-      taskId,
-      { description, status, date }, // Update fields based on input
-      { new: true, runValidators: true } // Return the updated document and run validators
-    );
-
-    if (!updatedTask) {
-      return res.status(404).json({ message: "Task not found" });
-    }
-
-    res.status(200).json({ success: true, task: updatedTask });
-  } catch (error) {
-    next(error);
-  }
-};
-
-export const updateTaskStatus = async (req, res) => {
-  const { taskId } = req.params;
-  const { status } = req.body;
-
-  try {
-    const updatedTask = await Task.findByIdAndUpdate(
-      taskId,
-      { status },
-      { new: true }
-    );
-    if (!updatedTask) {
-      return res.status(404).json({ message: "Task not found" });
-    }
-    res.status(200).json({ success: true, task: updatedTask });
-  } catch (error) {
-    return res.status(500).json({ message: error.message });
-  }
-};
-
-export const getUserTasksById = async (req, res, next) => {
-  const { collectionId } = req.params;
-  try {
-    const tasks = await Task.find({
-      collectionId: collectionId,
-      userId: req.userId,
-    }).populate("collectionId");
-
-    if (!tasks || tasks.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "No tasks found for this under this collection" });
-    }
-
-    res.status(200).json({ success: true, tasks });
-  } catch (error) {
-    next(error);
-  }
-};
-
+// Get all users task
 export const getUserTask = async (req, res, next) => {
   try {
     const tasks = await Task.find({ userId: req.userId }).populate(
@@ -144,6 +146,35 @@ export const getUserTask = async (req, res, next) => {
       return res.status(404).json({ message: "User not found" });
     }
     res.status(200).json({ success: true, tasks });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+// Delete a task or subtask
+export const deleteTask = async (req, res, next) => {
+  const { taskId } = req.params;
+
+  try {
+    const taskToDelete = await Task.findById(taskId);
+
+    if (!taskToDelete) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    // If it's a subtask, remove its reference from the parent task's subtasks array
+    if (taskToDelete.parentId) {
+      const parentTask = await Task.findById(taskToDelete.parentId);
+      if (parentTask) {
+        await parentTask.updateOne({ $pull: { subtasks: taskId } }); // Remove taskId from parent's subtasks
+      }
+    }
+
+    // Delete the task (and subtasks if you want to delete them too)
+    await Task.deleteOne({ _id: taskId });
+
+    res.status(200).json({ success: true, message: "Task deleted successfully" });
   } catch (error) {
     next(error);
   }
